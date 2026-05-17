@@ -17,6 +17,7 @@ import * as verifyCmd from "../commands/verify.js";
 import { db } from "@workspace/db";
 import { guildSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { logger } from "../../lib/logger.js";
 
 const slashCommands = new Map([
   ["ticket",       ticketCmd.execute],
@@ -33,24 +34,33 @@ const slashCommands = new Map([
 
 export async function handleInteractionCreate(interaction: Interaction) {
   if (interaction.isChatInputCommand()) {
+    logger.info({ command: interaction.commandName, user: interaction.user.tag }, "Slash command received");
     await handleSlashCommand(interaction);
   } else if (interaction.isButton()) {
+    logger.info({ customId: interaction.customId, user: interaction.user.tag }, "Button interaction received");
     await handleButton(interaction);
   } else if (interaction.isStringSelectMenu()) {
+    logger.info({ customId: interaction.customId, user: interaction.user.tag }, "Select menu interaction received");
     await handleSelectMenu(interaction);
   } else if (interaction.isModalSubmit()) {
+    logger.info({ customId: interaction.customId, user: interaction.user.tag }, "Modal submit received");
     await handleModalSubmit(interaction);
   }
 }
 
 async function handleSlashCommand(interaction: ChatInputCommandInteraction) {
   const handler = slashCommands.get(interaction.commandName);
-  if (!handler) return;
+  if (!handler) {
+    logger.warn({ command: interaction.commandName }, "No handler found for command");
+    return;
+  }
 
   try {
     await handler(interaction);
+    logger.info({ command: interaction.commandName }, "Command handled successfully");
   } catch (err) {
-    const msg = `❌ An error occurred: ${err instanceof Error ? err.message : "Unknown error"}`;
+    logger.error({ err, command: interaction.commandName }, "Command handler error");
+    const msg = `❌ Fehler: ${err instanceof Error ? err.message : "Unbekannter Fehler"}`;
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content: msg }).catch(() => null);
     } else {
