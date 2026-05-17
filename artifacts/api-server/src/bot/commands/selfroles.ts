@@ -132,6 +132,7 @@ const ROLE_CATEGORIES: Record<string, { label: string; roles: RoleDef[] }> = {
       { name: "🇷🇺 Русский",        emoji: "🇷🇺", description: "Говорит по-русски",          color: 0x3498db },
       { name: "🇵🇹 Português",      emoji: "🇵🇹", description: "Fala português",             color: 0x2ecc71 },
       { name: "🇨🇳 中文",            emoji: "🇨🇳", description: "说中文",                   color: 0xe74c3c },
+      { name: "🏔️ Kurdisch (Kurmancî)", emoji: "🏔️", description: "Bi kurdî diaxive",      color: 0xf39c12 },
     ],
   },
   bundeslaender: {
