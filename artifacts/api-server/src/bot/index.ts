@@ -4,7 +4,6 @@ import {
   Events,
   REST,
   Routes,
-  Collection,
 } from "discord.js";
 import { logger } from "../lib/logger.js";
 import { handleMessageCreate } from "./events/messageCreate.js";
@@ -17,6 +16,7 @@ import * as rulesCmd from "./commands/rules.js";
 import * as levelCmd from "./commands/level.js";
 import * as createserverCmd from "./commands/createserver.js";
 import * as aiCmd from "./commands/ai.js";
+import * as verifyCmd from "./commands/verify.js";
 
 const token = process.env["DISCORD_BOT_TOKEN"];
 
@@ -42,6 +42,7 @@ if (!token) {
     levelCmd.leaderboardData,
     createserverCmd.data,
     aiCmd.data,
+    verifyCmd.data,
   ];
 
   client.once(Events.ClientReady, async (c) => {

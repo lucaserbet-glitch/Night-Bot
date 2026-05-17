@@ -11,6 +11,10 @@ export async function handleGuildMemberAdd(member: GuildMember) {
     .from(guildSettingsTable)
     .where(eq(guildSettingsTable.guildId, guildId));
 
+  if (settings?.unverifiedRoleId) {
+    await member.roles.add(settings.unverifiedRoleId).catch(() => null);
+  }
+
   if (!settings?.welcomeChannelId) return;
 
   const channel = member.guild.channels.cache.get(settings.welcomeChannelId) as

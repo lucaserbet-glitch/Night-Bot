@@ -3,6 +3,7 @@ import {
   ChatInputCommandInteraction,
   ButtonInteraction,
   ModalSubmitInteraction,
+  EmbedBuilder,
 } from "discord.js";
 import * as ticketCmd from "../commands/ticket.js";
 import * as selfrolesCmd from "../commands/selfroles.js";
@@ -11,10 +12,10 @@ import * as rulesCmd from "../commands/rules.js";
 import * as levelCmd from "../commands/level.js";
 import * as createserverCmd from "../commands/createserver.js";
 import * as aiCmd from "../commands/ai.js";
+import * as verifyCmd from "../commands/verify.js";
 import { db } from "@workspace/db";
 import { guildSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { EmbedBuilder } from "discord.js";
 
 const slashCommands = new Map([
   ["ticket", ticketCmd.execute],
@@ -25,6 +26,7 @@ const slashCommands = new Map([
   ["leaderboard", levelCmd.executeLeaderboard],
   ["createserver", createserverCmd.execute],
   ["ai", aiCmd.execute],
+  ["verify", verifyCmd.execute],
 ]);
 
 export async function handleInteractionCreate(interaction: Interaction) {
@@ -61,6 +63,8 @@ async function handleButton(interaction: ButtonInteraction) {
       await ticketCmd.handleTicketOpen(interaction);
     } else if (id === "ticket_close") {
       await ticketCmd.handleTicketClose(interaction);
+    } else if (id === "verify_confirm") {
+      await verifyCmd.handleVerifyButton(interaction);
     } else if (id.startsWith("selfrole_toggle_")) {
       const roleId = id.slice("selfrole_toggle_".length);
       await selfrolesCmd.handleSelfroleToggle(interaction, roleId);

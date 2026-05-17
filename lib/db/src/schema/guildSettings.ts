@@ -14,6 +14,10 @@ export const guildSettingsTable = pgTable("guild_settings", {
   rulesContent: text("rules_content"),
   selfRolesPanelChannelId: text("self_roles_panel_channel_id"),
   selfRolesPanelMessageId: text("self_roles_panel_message_id"),
+  verifyChannelId: text("verify_channel_id"),
+  verifyMessageId: text("verify_message_id"),
+  unverifiedRoleId: text("unverified_role_id"),
+  verifiedRoleId: text("verified_role_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
