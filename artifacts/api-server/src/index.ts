@@ -1,5 +1,5 @@
 import app from "./app";
-import "./bot";
+import "./bot/index.js";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
