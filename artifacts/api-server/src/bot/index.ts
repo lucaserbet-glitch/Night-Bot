@@ -40,6 +40,7 @@ if (!token) {
     rulesCmd.data,
     levelCmd.data,
     levelCmd.leaderboardData,
+    levelCmd.levelSetupData,
     createserverCmd.data,
     aiCmd.data,
     verifyCmd.data,

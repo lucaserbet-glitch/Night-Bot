@@ -13,17 +13,28 @@ import { db } from "@workspace/db";
 import { guildSettingsTable, selfRolesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
+const DEFAULT_SELF_ROLES = [
+  { name: "🎮 Gamer",        emoji: "🎮", description: "Into gaming" },
+  { name: "🎵 Music Fan",    emoji: "🎵", description: "Loves music" },
+  { name: "🎨 Artist",       emoji: "🎨", description: "Creative mind" },
+  { name: "📺 Anime Fan",    emoji: "📺", description: "Watches anime" },
+  { name: "🔧 Tech Nerd",    emoji: "🔧", description: "Loves technology" },
+  { name: "📸 Photography",  emoji: "📸", description: "Captures moments" },
+];
+
 export const data = new SlashCommandBuilder()
   .setName("selfroles")
   .setDescription("Self-assignable roles system")
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
   .addSubcommand((sub) =>
-    sub.setName("setup").setDescription("Create or refresh the self-roles panel in this channel")
+    sub
+      .setName("setup")
+      .setDescription("Set up self-roles panel and auto-create default roles if none exist")
   )
   .addSubcommand((sub) =>
     sub
       .setName("add")
-      .setDescription("Add a self-assignable role (creates it if it doesn't exist)")
+      .setDescription("Add a self-assignable role (creates it automatically if it doesn't exist)")
       .addStringOption((opt) =>
         opt.setName("name").setDescription("Role name").setRequired(true)
       )
@@ -56,7 +67,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     let role = guild.roles.cache.find((r) => r.name.toLowerCase() === name.toLowerCase());
     if (!role) {
-      role = await guild.roles.create({ name, reason: "Self-role created by bot" });
+      role = await guild.roles.create({ name, reason: "Self-role auto-created by bot" });
     }
 
     const existing = await db
@@ -79,6 +90,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await refreshPanel(interaction, guildId, guild);
     await interaction.editReply({ content: `✅ Role **${role.name}** added to the self-roles panel.` });
+
   } else if (sub === "remove") {
     await interaction.deferReply({ ephemeral: true });
     const name = interaction.options.getString("name", true);
@@ -96,8 +108,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await db.delete(selfRolesTable).where(eq(selfRolesTable.id, found.id));
     await refreshPanel(interaction, guildId, guild);
     await interaction.editReply({ content: `✅ Role **${name}** removed from the self-roles panel.` });
+
   } else if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
+
     await db
       .insert(guildSettingsTable)
       .values({ guildId, selfRolesPanelChannelId: interaction.channelId })
@@ -105,8 +119,57 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         target: guildSettingsTable.guildId,
         set: { selfRolesPanelChannelId: interaction.channelId },
       });
+
+    const existingRoles = await db
+      .select()
+      .from(selfRolesTable)
+      .where(eq(selfRolesTable.guildId, guildId));
+
+    const created: string[] = [];
+
+    if (existingRoles.length === 0) {
+      for (const def of DEFAULT_SELF_ROLES) {
+        let role = guild.roles.cache.find((r) => r.name.toLowerCase() === def.name.toLowerCase());
+        if (!role) {
+          role = await guild.roles.create({
+            name: def.name,
+            reason: "Default self-role auto-created by bot",
+          });
+          created.push(def.name);
+        }
+        await db.insert(selfRolesTable).values({
+          guildId,
+          roleId: role.id,
+          roleName: role.name,
+          emoji: def.emoji,
+          description: def.description,
+        }).onConflictDoNothing();
+      }
+    } else {
+      for (const entry of existingRoles) {
+        const exists = guild.roles.cache.has(entry.roleId);
+        if (!exists) {
+          const newRole = await guild.roles.create({
+            name: entry.roleName,
+            reason: "Self-role re-created by bot (was deleted)",
+          });
+          await db
+            .update(selfRolesTable)
+            .set({ roleId: newRole.id })
+            .where(eq(selfRolesTable.id, entry.id));
+          created.push(entry.roleName);
+        }
+      }
+    }
+
     await refreshPanel(interaction, guildId, guild);
-    await interaction.editReply({ content: `✅ Self-roles panel set up in this channel.` });
+
+    let msg = `✅ Self-roles panel set up in this channel.`;
+    if (created.length > 0) {
+      msg += `\n\n🎭 **Auto-created roles:**\n${created.map((n) => `• ${n}`).join("\n")}`;
+    }
+    msg += `\n\nUse \`/selfroles add\` to add more roles, or \`/selfroles remove\` to remove any.`;
+    await interaction.editReply({ content: msg });
   }
 }
 

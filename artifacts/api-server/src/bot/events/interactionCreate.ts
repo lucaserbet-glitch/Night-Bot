@@ -25,6 +25,7 @@ const slashCommands = new Map([
   ["rules",        rulesCmd.execute],
   ["rank",         levelCmd.execute],
   ["leaderboard",  levelCmd.executeLeaderboard],
+  ["levelsetup",   levelCmd.executeLevelSetup],
   ["createserver", createserverCmd.execute],
   ["ai",           aiCmd.execute],
   ["verify",       verifyCmd.execute],
