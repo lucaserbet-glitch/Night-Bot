@@ -41,7 +41,7 @@ if (!token) {
     levelCmd.data,
     levelCmd.leaderboardData,
     levelCmd.levelSetupData,
-    createserverCmd.data,
+    createserverCmd.data, // registered as "serversetup"
     aiCmd.data,
     verifyCmd.data,
   ];
