@@ -7,6 +7,7 @@ export const ticketsTable = pgTable("tickets", {
   guildId: text("guild_id").notNull(),
   channelId: text("channel_id").notNull().unique(),
   userId: text("user_id").notNull(),
+  category: text("category"),
   status: text("status").notNull().default("open"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp("closed_at", { withTimezone: true }),

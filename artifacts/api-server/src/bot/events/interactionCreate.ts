@@ -3,6 +3,7 @@ import {
   ChatInputCommandInteraction,
   ButtonInteraction,
   ModalSubmitInteraction,
+  StringSelectMenuInteraction,
   EmbedBuilder,
 } from "discord.js";
 import * as ticketCmd from "../commands/ticket.js";
@@ -18,15 +19,15 @@ import { guildSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const slashCommands = new Map([
-  ["ticket", ticketCmd.execute],
-  ["selfroles", selfrolesCmd.execute],
-  ["welcome", welcomeCmd.execute],
-  ["rules", rulesCmd.execute],
-  ["rank", levelCmd.execute],
-  ["leaderboard", levelCmd.executeLeaderboard],
+  ["ticket",       ticketCmd.execute],
+  ["selfroles",    selfrolesCmd.execute],
+  ["welcome",      welcomeCmd.execute],
+  ["rules",        rulesCmd.execute],
+  ["rank",         levelCmd.execute],
+  ["leaderboard",  levelCmd.executeLeaderboard],
   ["createserver", createserverCmd.execute],
-  ["ai", aiCmd.execute],
-  ["verify", verifyCmd.execute],
+  ["ai",           aiCmd.execute],
+  ["verify",       verifyCmd.execute],
 ]);
 
 export async function handleInteractionCreate(interaction: Interaction) {
@@ -34,6 +35,8 @@ export async function handleInteractionCreate(interaction: Interaction) {
     await handleSlashCommand(interaction);
   } else if (interaction.isButton()) {
     await handleButton(interaction);
+  } else if (interaction.isStringSelectMenu()) {
+    await handleSelectMenu(interaction);
   } else if (interaction.isModalSubmit()) {
     await handleModalSubmit(interaction);
   }
@@ -71,6 +74,23 @@ async function handleButton(interaction: ButtonInteraction) {
     }
   } catch (err) {
     const msg = `❌ Button error: ${err instanceof Error ? err.message : "Unknown error"}`;
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: msg }).catch(() => null);
+    } else {
+      await interaction.reply({ content: msg, ephemeral: true }).catch(() => null);
+    }
+  }
+}
+
+async function handleSelectMenu(interaction: StringSelectMenuInteraction) {
+  const id = interaction.customId;
+
+  try {
+    if (id === "ticket_category_select") {
+      await ticketCmd.handleTicketCategorySelect(interaction);
+    }
+  } catch (err) {
+    const msg = `❌ Select menu error: ${err instanceof Error ? err.message : "Unknown error"}`;
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content: msg }).catch(() => null);
     } else {

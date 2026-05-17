@@ -7,13 +7,22 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-  OverwriteType,
   ButtonInteraction,
+  StringSelectMenuInteraction,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   TextChannel,
 } from "discord.js";
 import { db } from "@workspace/db";
-import { guildSettingsTable, ticketsTable } from "@workspace/db";
+import { guildSettingsTable, ticketsTable, ticketCategoriesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+
+const DEFAULT_CATEGORIES = [
+  { name: "📋 General Support", emoji: "📋", description: "General questions and help" },
+  { name: "🐛 Bug Report",       emoji: "🐛", description: "Report a bug or issue" },
+  { name: "⚖️ Appeal",           emoji: "⚖️", description: "Ban or mute appeal" },
+  { name: "💡 Other",            emoji: "💡", description: "Anything else" },
+];
 
 export const data = new SlashCommandBuilder()
   .setName("ticket")
@@ -32,15 +41,51 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand((sub) =>
     sub.setName("close").setDescription("Close the current ticket")
+  )
+  .addSubcommandGroup((group) =>
+    group
+      .setName("category")
+      .setDescription("Manage ticket categories")
+      .addSubcommand((sub) =>
+        sub
+          .setName("add")
+          .setDescription("Add a ticket category")
+          .addStringOption((opt) =>
+            opt.setName("name").setDescription("Category name").setRequired(true)
+          )
+          .addStringOption((opt) =>
+            opt.setName("emoji").setDescription("Emoji for this category").setRequired(false)
+          )
+          .addStringOption((opt) =>
+            opt.setName("description").setDescription("Short description").setRequired(false)
+          )
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("remove")
+          .setDescription("Remove a ticket category")
+          .addStringOption((opt) =>
+            opt.setName("name").setDescription("Category name to remove").setRequired(true)
+          )
+      )
+      .addSubcommand((sub) =>
+        sub.setName("list").setDescription("List all ticket categories")
+      )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
+  const group = interaction.options.getSubcommandGroup(false);
   const sub = interaction.options.getSubcommand();
+  const guildId = interaction.guildId!;
+
+  if (group === "category") {
+    await handleCategoryCommand(interaction, sub, guildId);
+    return;
+  }
 
   if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
     const guild = interaction.guild!;
-    const guildId = guild.id;
     const logChannel = interaction.options.getChannel("log_channel");
 
     let category = guild.channels.cache.find(
@@ -60,12 +105,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       topic: "Click the button below to open a support ticket.",
     });
 
+    const categories = await db
+      .select()
+      .from(ticketCategoriesTable)
+      .where(eq(ticketCategoriesTable.guildId, guildId));
+
+    const categoryList =
+      categories.length > 0
+        ? categories.map((c) => `${c.emoji ?? "🎫"} ${c.name}`).join("\n")
+        : DEFAULT_CATEGORIES.map((c) => `${c.emoji} ${c.name}`).join("\n");
+
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle("🎫 Support Tickets")
       .setDescription(
-        "Need help? Click the button below to create a private support ticket.\nA staff member will assist you as soon as possible."
+        "Need help? Click the button below and select a category to open a private support ticket.\nA staff member will assist you as soon as possible."
       )
+      .addFields({ name: "Available Categories", value: categoryList })
       .setFooter({ text: guild.name });
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -80,26 +136,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await db
       .insert(guildSettingsTable)
-      .values({
-        guildId,
-        ticketCategoryId: category.id,
-        ticketLogChannelId: logChannel?.id ?? null,
-      })
+      .values({ guildId, ticketCategoryId: category.id, ticketLogChannelId: logChannel?.id ?? null })
       .onConflictDoUpdate({
         target: guildSettingsTable.guildId,
-        set: {
-          ticketCategoryId: category.id,
-          ticketLogChannelId: logChannel?.id ?? null,
-        },
+        set: { ticketCategoryId: category.id, ticketLogChannelId: logChannel?.id ?? null },
       });
 
     await interaction.editReply({
-      content: `✅ Ticket system set up! Panel created in <#${ticketChannel.id}>.`,
+      content:
+        `✅ Ticket system set up! Panel created in <#${ticketChannel.id}>.\n\n` +
+        `Use \`/ticket category add\` to add custom categories.`,
     });
   } else if (sub === "close") {
-    const guildId = interaction.guildId!;
     const channelId = interaction.channelId;
-
     const [ticket] = await db
       .select()
       .from(ticketsTable)
@@ -111,41 +160,144 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     await interaction.reply({ content: "🔒 Closing ticket in 3 seconds..." });
-    await db
-      .update(ticketsTable)
-      .set({ status: "closed", closedAt: new Date() })
-      .where(eq(ticketsTable.channelId, channelId));
-
-    await logTicketClose(interaction, ticket.userId);
+    await db.update(ticketsTable).set({ status: "closed", closedAt: new Date() }).where(eq(ticketsTable.channelId, channelId));
+    await logTicketClose(interaction, ticket.userId, ticket.category ?? "Unknown");
     setTimeout(() => interaction.channel?.delete().catch(() => null), 3000);
   }
 }
 
+async function handleCategoryCommand(
+  interaction: ChatInputCommandInteraction,
+  sub: string,
+  guildId: string
+) {
+  if (sub === "add") {
+    const name = interaction.options.getString("name", true);
+    const emoji = interaction.options.getString("emoji") ?? null;
+    const description = interaction.options.getString("description") ?? null;
+
+    const existing = await db
+      .select()
+      .from(ticketCategoriesTable)
+      .where(and(eq(ticketCategoriesTable.guildId, guildId), eq(ticketCategoriesTable.name, name)));
+
+    if (existing.length > 0) {
+      await interaction.reply({ content: `❌ Category **${name}** already exists.`, ephemeral: true });
+      return;
+    }
+
+    const count = await db.select().from(ticketCategoriesTable).where(eq(ticketCategoriesTable.guildId, guildId));
+    if (count.length >= 25) {
+      await interaction.reply({ content: "❌ You can have at most 25 categories.", ephemeral: true });
+      return;
+    }
+
+    await db.insert(ticketCategoriesTable).values({ guildId, name, emoji, description });
+    await interaction.reply({
+      content: `✅ Category **${emoji ? emoji + " " : ""}${name}** added.`,
+      ephemeral: true,
+    });
+  } else if (sub === "remove") {
+    const name = interaction.options.getString("name", true);
+    const [found] = await db
+      .select()
+      .from(ticketCategoriesTable)
+      .where(and(eq(ticketCategoriesTable.guildId, guildId), eq(ticketCategoriesTable.name, name)));
+
+    if (!found) {
+      await interaction.reply({ content: `❌ Category **${name}** not found.`, ephemeral: true });
+      return;
+    }
+
+    await db.delete(ticketCategoriesTable).where(eq(ticketCategoriesTable.id, found.id));
+    await interaction.reply({ content: `✅ Category **${name}** removed.`, ephemeral: true });
+  } else if (sub === "list") {
+    const categories = await db
+      .select()
+      .from(ticketCategoriesTable)
+      .where(eq(ticketCategoriesTable.guildId, guildId));
+
+    if (categories.length === 0) {
+      await interaction.reply({
+        content: "No custom categories set. Using defaults:\n" +
+          DEFAULT_CATEGORIES.map((c) => `${c.emoji} **${c.name}** — ${c.description}`).join("\n"),
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const list = categories
+      .map((c) => `${c.emoji ?? "🎫"} **${c.name}**${c.description ? ` — ${c.description}` : ""}`)
+      .join("\n");
+
+    await interaction.reply({ content: `**Ticket Categories:**\n${list}`, ephemeral: true });
+  }
+}
+
 export async function handleTicketOpen(interaction: ButtonInteraction) {
-  await interaction.deferReply({ ephemeral: true });
-  const guild = interaction.guild!;
-  const guildId = guild.id;
-  const userId = interaction.user.id;
+  const guildId = interaction.guildId!;
 
   const existing = await db
     .select()
     .from(ticketsTable)
-    .where(
-      and(eq(ticketsTable.guildId, guildId), eq(ticketsTable.userId, userId), eq(ticketsTable.status, "open"))
-    );
+    .where(and(eq(ticketsTable.guildId, guildId), eq(ticketsTable.userId, interaction.user.id), eq(ticketsTable.status, "open")));
 
   if (existing.length > 0) {
-    await interaction.editReply({ content: `❌ You already have an open ticket: <#${existing[0]!.channelId}>` });
+    await interaction.reply({
+      content: `❌ You already have an open ticket: <#${existing[0]!.channelId}>`,
+      ephemeral: true,
+    });
     return;
   }
+
+  const customCategories = await db
+    .select()
+    .from(ticketCategoriesTable)
+    .where(eq(ticketCategoriesTable.guildId, guildId));
+
+  const categories = customCategories.length > 0 ? customCategories : DEFAULT_CATEGORIES.map((c) => ({
+    id: 0, guildId, name: c.name, emoji: c.emoji, description: c.description, createdAt: new Date(),
+  }));
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId("ticket_category_select")
+    .setPlaceholder("Choose a ticket category...")
+    .addOptions(
+      categories.map((c) =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(c.name)
+          .setValue(c.name)
+          .setDescription(c.description ?? "Open a ticket in this category")
+          .setEmoji(c.emoji ?? "🎫")
+      )
+    );
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+
+  await interaction.reply({
+    content: "Please select a category for your ticket:",
+    components: [row],
+    ephemeral: true,
+  });
+}
+
+export async function handleTicketCategorySelect(interaction: StringSelectMenuInteraction) {
+  await interaction.deferUpdate();
+  const guild = interaction.guild!;
+  const guildId = guild.id;
+  const userId = interaction.user.id;
+  const category = interaction.values[0]!;
 
   const [settings] = await db
     .select()
     .from(guildSettingsTable)
     .where(eq(guildSettingsTable.guildId, guildId));
 
+  const safeName = category.replace(/[^\w\s-]/g, "").trim().toLowerCase().replace(/\s+/g, "-").slice(0, 20);
+  const channelName = `${safeName}-${interaction.user.username.slice(0, 15)}`;
+
   const ticketChannel = await guild.channels.create({
-    name: `ticket-${interaction.user.username}`,
+    name: channelName,
     type: ChannelType.GuildText,
     parent: settings?.ticketCategoryId ?? undefined,
     permissionOverwrites: [
@@ -159,15 +311,17 @@ export async function handleTicketOpen(interaction: ButtonInteraction) {
     guildId,
     channelId: ticketChannel.id,
     userId,
+    category,
     status: "open",
   });
 
   const embed = new EmbedBuilder()
-    .setColor(0x2ecc71)
-    .setTitle("🎫 Support Ticket")
+    .setColor(0x3498db)
+    .setTitle(`🎫 ${category}`)
     .setDescription(
-      `Hello ${interaction.user}! A staff member will be with you shortly.\nDescribe your issue below.`
+      `Hello ${interaction.user}! A staff member will be with you shortly.\nPlease describe your issue in detail below.`
     )
+    .addFields({ name: "Category", value: category, inline: true })
     .setFooter({ text: "Click 'Close Ticket' when your issue is resolved." });
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -179,7 +333,11 @@ export async function handleTicketOpen(interaction: ButtonInteraction) {
   );
 
   await (ticketChannel as TextChannel).send({ content: `${interaction.user}`, embeds: [embed], components: [row] });
-  await interaction.editReply({ content: `✅ Your ticket has been created: <#${ticketChannel.id}>` });
+
+  await interaction.editReply({
+    content: `✅ Your **${category}** ticket has been created: <#${ticketChannel.id}>`,
+    components: [],
+  });
 }
 
 export async function handleTicketClose(interaction: ButtonInteraction) {
@@ -195,18 +353,15 @@ export async function handleTicketClose(interaction: ButtonInteraction) {
   }
 
   await interaction.reply({ content: "🔒 Closing ticket in 3 seconds..." });
-  await db
-    .update(ticketsTable)
-    .set({ status: "closed", closedAt: new Date() })
-    .where(eq(ticketsTable.channelId, channelId));
-
-  await logTicketClose(interaction, ticket.userId);
+  await db.update(ticketsTable).set({ status: "closed", closedAt: new Date() }).where(eq(ticketsTable.channelId, channelId));
+  await logTicketClose(interaction, ticket.userId, ticket.category ?? "Unknown");
   setTimeout(() => interaction.channel?.delete().catch(() => null), 3000);
 }
 
 async function logTicketClose(
   interaction: ChatInputCommandInteraction | ButtonInteraction,
-  ticketUserId: string
+  ticketUserId: string,
+  category: string
 ) {
   const guildId = interaction.guildId!;
   const [settings] = await db
@@ -222,7 +377,7 @@ async function logTicketClose(
     .setColor(0xe74c3c)
     .setTitle("🔒 Ticket Closed")
     .addFields(
-      { name: "Channel", value: interaction.channel?.toString() ?? "unknown", inline: true },
+      { name: "Category", value: category, inline: true },
       { name: "Opened by", value: `<@${ticketUserId}>`, inline: true },
       { name: "Closed by", value: `${interaction.user}`, inline: true }
     )
