@@ -117,12 +117,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle("🎫 Support Tickets")
+      .setTitle("🎫 Support & Hilfe")
       .setDescription(
-        "Need help? Click the button below and select a category to open a private support ticket.\nA staff member will assist you as soon as possible."
+        `Brauchst du Hilfe oder hast du ein Anliegen? Kein Problem — unser Team ist für dich da! ` +
+        `Klicke auf **"Ticket öffnen"** und wähle die passende Kategorie.\n\n` +
+        `📌 **So funktioniert es:**\n` +
+        `1️⃣ Klicke auf den Button unten\n` +
+        `2️⃣ Wähle die passende Kategorie aus\n` +
+        `3️⃣ Ein privater Kanal wird für dich erstellt\n` +
+        `4️⃣ Beschreibe dein Anliegen und warte auf einen Mitarbeiter\n\n` +
+        `⏱️ Wir antworten so schnell wie möglich!`
       )
-      .addFields({ name: "Available Categories", value: categoryList })
-      .setFooter({ text: guild.name });
+      .addFields(
+        { name: "📂 Verfügbare Kategorien", value: categoryList },
+        { name: "⚠️ Hinweis", value: "Bitte öffne nur ein Ticket pro Anliegen. Missbrauch des Ticket-Systems kann zu Maßnahmen führen." }
+      )
+      .setFooter({ text: `${guild.name} • Support-Team`, iconURL: guild.iconURL() ?? undefined })
+      .setTimestamp();
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
@@ -317,12 +328,27 @@ export async function handleTicketCategorySelect(interaction: StringSelectMenuIn
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle(`🎫 ${category}`)
+    .setTitle(`🎫 Ticket — ${category}`)
     .setDescription(
-      `Hello ${interaction.user}! A staff member will be with you shortly.\nPlease describe your issue in detail below.`
+      `Hallo ${interaction.user}! 👋 Danke, dass du ein Ticket eröffnet hast.\n\n` +
+      `Ein Mitarbeiter wird sich so schnell wie möglich um dein Anliegen kümmern. ` +
+      `**Bitte beschreibe dein Problem so detailliert wie möglich**, damit wir dir schneller helfen können.`
     )
-    .addFields({ name: "Category", value: category, inline: true })
-    .setFooter({ text: "Click 'Close Ticket' when your issue is resolved." });
+    .addFields(
+      { name: "📂 Kategorie", value: category, inline: true },
+      { name: "👤 Erstellt von", value: `${interaction.user}`, inline: true },
+      { name: "🕐 Erstellt am", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+      {
+        name: "📝 Hilfreiche Informationen",
+        value:
+          "• Beschreibe dein Problem so genau wie möglich\n" +
+          "• Füge Screenshots oder Beweise bei, falls vorhanden\n" +
+          "• Gib an, wann das Problem aufgetreten ist\n" +
+          "• Klicke auf **Ticket schließen** wenn dein Anliegen gelöst wurde",
+      }
+    )
+    .setFooter({ text: "Unser Team ist für dich da • Bitte hab etwas Geduld" })
+    .setTimestamp();
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()

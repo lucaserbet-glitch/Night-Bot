@@ -195,15 +195,25 @@ async function refreshPanel(
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle("🎭 Self-Assignable Roles")
+    .setTitle("🎭 Wähle deine Rollen!")
     .setDescription(
       roles.length === 0
-        ? "No self-roles configured yet. Use `/selfroles add` to add some."
-        : roles
-            .map((r) => `${r.emoji ? r.emoji + " " : ""}<@&${r.roleId}>${r.description ? ` — ${r.description}` : ""}`)
-            .join("\n")
+        ? "Noch keine Rollen konfiguriert. Admins können mit `/selfroles add` Rollen hinzufügen."
+        : `Hier kannst du dir deine persönlichen Rollen aussuchen! ` +
+          `Klicke auf einen Button um eine Rolle zu erhalten oder zu entfernen — du kannst mehrere wählen.\n\n` +
+          roles
+            .map((r) => `${r.emoji ? r.emoji + " " : ""}**<@&${r.roleId}>**${r.description ? `\n╰ ${r.description}` : ""}`)
+            .join("\n\n")
     )
-    .setFooter({ text: "Click a button to get or remove a role" });
+    .addFields({
+      name: "ℹ️ So funktioniert es",
+      value:
+        "• Klicke auf einen Button um eine Rolle **zu erhalten**\n" +
+        "• Klicke erneut um sie **zu entfernen**\n" +
+        "• Du kannst beliebig viele Rollen gleichzeitig haben",
+    })
+    .setFooter({ text: "Rollen werden sofort vergeben oder entfernt • Viel Spaß!" })
+    .setTimestamp();
 
   const chunkSize = 5;
   const components: ActionRowBuilder<ButtonBuilder>[] = [];

@@ -39,16 +39,36 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const { current, needed } = xpProgress(xp, level);
   const progressBar = buildProgressBar(current, needed);
 
+  const milestone = LEVEL_ROLES.slice().reverse().find((r) => level >= r.level);
+
   const embed = new EmbedBuilder()
-    .setColor(0x9b59b6)
-    .setAuthor({ name: target.displayName, iconURL: target.displayAvatarURL() })
-    .setTitle(`Level ${level}`)
-    .addFields(
-      { name: "XP", value: `${xp.toLocaleString()} total`, inline: true },
-      { name: "Progress", value: `${current} / ${needed} XP`, inline: true },
-      { name: "\u200b", value: progressBar }
+    .setColor(milestone?.color ?? 0x9b59b6)
+    .setAuthor({ name: `${target.displayName}'s Rang`, iconURL: target.displayAvatarURL() })
+    .setTitle(`${milestone?.name ?? "🔰 Neuling"} — Level ${level}`)
+    .setDescription(
+      level === 0
+        ? "Schreibe Nachrichten im Server um XP zu sammeln und aufzusteigen! 💬"
+        : `${target.displayName} ist ein aktives Mitglied der Community! Weiter so! 🚀`
     )
-    .setFooter({ text: `${needed - current} XP until level ${level + 1}` });
+    .addFields(
+      { name: "⭐ Level",        value: `**${level}**`,                   inline: true },
+      { name: "✨ Gesamt-XP",    value: `**${xp.toLocaleString()}** XP`,  inline: true },
+      { name: "📈 Fortschritt",  value: `**${current}** / **${needed}** XP`, inline: true },
+      { name: `Fortschrittsbalken bis Level ${level + 1}`, value: progressBar },
+    );
+
+  const nextMilestone = LEVEL_ROLES.find((r) => r.level > level);
+  if (nextMilestone) {
+    embed.addFields({
+      name: "🏆 Nächste Meilenstein-Rolle",
+      value: `${nextMilestone.name} bei **Level ${nextMilestone.level}** — noch **${nextMilestone.level - level}** Level entfernt`,
+    });
+  }
+
+  embed
+    .setThumbnail(target.displayAvatarURL({ size: 256 }))
+    .setFooter({ text: `Noch ${needed - current} XP bis Level ${level + 1}` })
+    .setTimestamp();
 
   await interaction.reply({ embeds: [embed] });
 }
@@ -77,8 +97,17 @@ export async function executeLeaderboard(interaction: ChatInputCommandInteractio
 
   const embed = new EmbedBuilder()
     .setColor(0xf1c40f)
-    .setTitle(`🏆 ${interaction.guild!.name} Leaderboard`)
-    .setDescription(lines.join("\n"))
+    .setTitle(`🏆 ${interaction.guild!.name} — Top ${rows.length}`)
+    .setDescription(
+      `Die aktivsten Mitglieder unserer Community! Schreibe Nachrichten um XP zu sammeln und auf die Bestenliste zu kommen.\n\n` +
+      lines.join("\n")
+    )
+    .addFields({
+      name: "ℹ️ Wie bekomme ich XP?",
+      value: "Schreibe Nachrichten im Server (1x pro Minute) und sammle automatisch **15–25 XP** pro Nachricht.",
+    })
+    .setThumbnail(interaction.guild!.iconURL({ size: 256 }) ?? null)
+    .setFooter({ text: `${interaction.guild!.name} • XP-System • Aktualisiert` })
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed] });
