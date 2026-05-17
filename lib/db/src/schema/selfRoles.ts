@@ -9,6 +9,7 @@ export const selfRolesTable = pgTable("self_roles", {
   roleName: text("role_name").notNull(),
   emoji: text("emoji"),
   description: text("description"),
+  category: text("category").notNull().default("Allgemein"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -14,6 +14,7 @@ export const guildSettingsTable = pgTable("guild_settings", {
   rulesContent: text("rules_content"),
   selfRolesPanelChannelId: text("self_roles_panel_channel_id"),
   selfRolesPanelMessageId: text("self_roles_panel_message_id"),
+  selfRolesPanelMessageIds: text("self_roles_panel_message_ids"),
   verifyChannelId: text("verify_channel_id"),
   verifyMessageId: text("verify_message_id"),
   unverifiedRoleId: text("unverified_role_id"),
