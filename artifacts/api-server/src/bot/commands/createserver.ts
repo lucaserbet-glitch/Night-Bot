@@ -117,8 +117,22 @@ const TEMPLATE_COLORS: Record<string, ColorResolvable> = {
 export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ ephemeral: true });
 
+  if (!interaction.guild) {
+    await interaction.editReply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden." });
+    return;
+  }
+
   const template = interaction.options.getString("template", true);
-  const guild    = interaction.guild!;
+  const guild = await interaction.guild.fetch().catch(() => null);
+  if (!guild) {
+    await interaction.editReply({ content: "❌ Server-Daten konnten nicht geladen werden. Bitte versuche es erneut." });
+    return;
+  }
+
+  await guild.members.fetch().catch(() => null);
+  await guild.roles.fetch().catch(() => null);
+  await guild.channels.fetch().catch(() => null);
+
   const { categories, roles } = getTemplate(template);
 
   const created = { categories: 0, channels: 0, roles: 0 };

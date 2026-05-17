@@ -183,7 +183,13 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const sub = interaction.options.getSubcommand();
   const guildId = interaction.guildId!;
-  const guild = interaction.guild!;
+  if (!interaction.guild) {
+    await interaction.reply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden.", ephemeral: true });
+    return;
+  }
+  const guild = await interaction.guild.fetch();
+  await guild.roles.fetch().catch(() => null);
+  await guild.channels.fetch().catch(() => null);
 
   if (sub === "category") {
     await interaction.deferReply({ ephemeral: true });

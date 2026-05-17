@@ -37,11 +37,17 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction) {
   const sub = interaction.options.getSubcommand();
   const guildId = interaction.guildId!;
-  const guild = interaction.guild!;
+  if (!interaction.guild) {
+    await interaction.reply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden.", ephemeral: true });
+    return;
+  }
+  const guild = await interaction.guild.fetch();
 
   if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
     const channel = interaction.options.getChannel("channel", true) as TextChannel;
+    await guild.roles.fetch().catch(() => null);
+    await guild.channels.fetch().catch(() => null);
 
     let unverifiedRole = guild.roles.cache.find((r) => r.name === "🔒 Unverified");
     if (!unverifiedRole) {

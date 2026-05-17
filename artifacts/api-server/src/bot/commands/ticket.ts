@@ -85,7 +85,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
-    const guild = interaction.guild!;
+    if (!interaction.guild) {
+      await interaction.editReply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden." });
+      return;
+    }
+    const guild = await interaction.guild.fetch();
+    await guild.roles.fetch().catch(() => null);
+    await guild.channels.fetch().catch(() => null);
     const logChannel = interaction.options.getChannel("log_channel");
 
     let category = guild.channels.cache.find(
