@@ -182,12 +182,16 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const sub = interaction.options.getSubcommand();
-  const guildId = interaction.guildId!;
-  if (!interaction.guild) {
+  const guildId = interaction.guildId;
+  if (!guildId) {
     await interaction.reply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden.", ephemeral: true });
     return;
   }
-  const guild = await interaction.guild.fetch();
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await interaction.reply({ content: "❌ Server konnte nicht geladen werden.", ephemeral: true });
+    return;
+  }
   await guild.roles.fetch().catch(() => null);
   await guild.channels.fetch().catch(() => null);
 
@@ -480,7 +484,16 @@ async function refreshPanel(
 }
 
 export async function handleSelfroleToggle(interaction: ButtonInteraction, roleId: string) {
-  const guild = interaction.guild!;
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    await interaction.reply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden.", ephemeral: true });
+    return;
+  }
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await interaction.reply({ content: "❌ Server konnte nicht geladen werden.", ephemeral: true });
+    return;
+  }
   const member = await guild.members.fetch(interaction.user.id).catch(() => null);
   if (!member) {
     await interaction.reply({ content: "❌ Deine Mitgliedsdaten konnten nicht geladen werden.", ephemeral: true });

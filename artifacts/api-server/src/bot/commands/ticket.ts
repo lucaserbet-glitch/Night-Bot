@@ -85,11 +85,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
-    if (!interaction.guild) {
-      await interaction.editReply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden." });
+    const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+      await interaction.editReply({ content: "❌ Server konnte nicht geladen werden." });
       return;
     }
-    const guild = await interaction.guild.fetch();
     await guild.roles.fetch().catch(() => null);
     await guild.channels.fetch().catch(() => null);
     const logChannel = interaction.options.getChannel("log_channel");
@@ -300,8 +300,14 @@ export async function handleTicketOpen(interaction: ButtonInteraction) {
 
 export async function handleTicketCategorySelect(interaction: StringSelectMenuInteraction) {
   await interaction.deferUpdate();
-  const guild = interaction.guild!;
-  const guildId = guild.id;
+  const guildId = interaction.guildId!;
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await interaction.followUp({ content: "❌ Server konnte nicht geladen werden.", ephemeral: true });
+    return;
+  }
+  await guild.roles.fetch().catch(() => null);
+  await guild.channels.fetch().catch(() => null);
   const userId = interaction.user.id;
   const category = interaction.values[0]!;
 
@@ -402,7 +408,8 @@ async function logTicketClose(
     .where(eq(guildSettingsTable.guildId, guildId));
 
   if (!settings?.ticketLogChannelId) return;
-  const logChannel = interaction.guild!.channels.cache.get(settings.ticketLogChannelId);
+  const logGuild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  const logChannel = logGuild?.channels.cache.get(settings.ticketLogChannelId);
   if (!logChannel?.isTextBased()) return;
 
   const embed = new EmbedBuilder()

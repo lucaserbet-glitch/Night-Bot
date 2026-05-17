@@ -115,11 +115,11 @@ export async function executeLeaderboard(interaction: ChatInputCommandInteractio
 
 export async function executeLevelSetup(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ ephemeral: true });
-  if (!interaction.guild) {
-    await interaction.editReply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden." });
+  const guild = await interaction.client.guilds.fetch(interaction.guildId!).catch(() => null);
+  if (!guild) {
+    await interaction.editReply({ content: "❌ Server konnte nicht geladen werden." });
     return;
   }
-  const guild = await interaction.guild.fetch();
   await guild.roles.fetch().catch(() => null);
 
   const created: string[] = [];

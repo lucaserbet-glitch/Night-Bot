@@ -36,12 +36,16 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const sub = interaction.options.getSubcommand();
-  const guildId = interaction.guildId!;
-  if (!interaction.guild) {
+  const guildId = interaction.guildId;
+  if (!guildId) {
     await interaction.reply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden.", ephemeral: true });
     return;
   }
-  const guild = await interaction.guild.fetch();
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await interaction.reply({ content: "❌ Server konnte nicht geladen werden.", ephemeral: true });
+    return;
+  }
 
   if (sub === "setup") {
     await interaction.deferReply({ ephemeral: true });
@@ -162,8 +166,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
 export async function handleVerifyButton(interaction: ButtonInteraction) {
   await interaction.deferReply({ ephemeral: true });
-  const guildId = interaction.guildId!;
-  const guild = interaction.guild!;
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    await interaction.editReply({ content: "❌ Dieser Befehl kann nur in einem Server verwendet werden." });
+    return;
+  }
+  const guild = await interaction.client.guilds.fetch(guildId).catch(() => null);
+  if (!guild) {
+    await interaction.editReply({ content: "❌ Server konnte nicht geladen werden." });
+    return;
+  }
 
   const [settings] = await db
     .select()
