@@ -14,6 +14,7 @@ import * as levelCmd from "../commands/level.js";
 import * as createserverCmd from "../commands/createserver.js";
 import * as aiCmd from "../commands/ai.js";
 import * as verifyCmd from "../commands/verify.js";
+import * as rolecleanupCmd from "../commands/rolecleanup.js";
 import { db } from "@workspace/db";
 import { guildSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -30,6 +31,7 @@ const slashCommands = new Map([
   ["serversetup",  createserverCmd.execute],
   ["ai",           aiCmd.execute],
   ["verify",       verifyCmd.execute],
+  ["rolecleanup",  rolecleanupCmd.execute],
 ]);
 
 export async function handleInteractionCreate(interaction: Interaction) {
@@ -82,6 +84,8 @@ async function handleButton(interaction: ButtonInteraction) {
     } else if (id.startsWith("selfrole_toggle_")) {
       const roleId = id.slice("selfrole_toggle_".length);
       await selfrolesCmd.handleSelfroleToggle(interaction, roleId);
+    } else if (id.startsWith("rolecleanup_confirm_") || id === "rolecleanup_cancel") {
+      await rolecleanupCmd.handleRolecleanupButton(interaction);
     }
   } catch (err) {
     const msg = `❌ Button error: ${err instanceof Error ? err.message : "Unknown error"}`;

@@ -17,6 +17,7 @@ import * as levelCmd from "./commands/level.js";
 import * as createserverCmd from "./commands/createserver.js";
 import * as aiCmd from "./commands/ai.js";
 import * as verifyCmd from "./commands/verify.js";
+import * as rolecleanupCmd from "./commands/rolecleanup.js";
 
 const token = process.env["DISCORD_BOT_TOKEN"];
 
@@ -44,6 +45,7 @@ if (!token) {
     createserverCmd.data, // registered as "serversetup"
     aiCmd.data,
     verifyCmd.data,
+    rolecleanupCmd.data,
   ];
 
   client.once(Events.ClientReady, async (c) => {
