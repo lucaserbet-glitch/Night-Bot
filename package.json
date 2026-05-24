@@ -1,0 +1,11 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "build": "pnpm --filter @workspace/api-server build",
+    "start": "pnpm --filter @workspace/api-server start"
+  }
+}
